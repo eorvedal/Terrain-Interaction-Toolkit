@@ -40,6 +40,7 @@ Now, make any changes you need to the original prefabs you used to set up your t
 
 Once your prefabs are set up with your changes (interactivity scripts, pickup objects scripts, etc.) you are ready to replace the terrain details with these modified prefabs. In the manager's context menu choose "Convert _Customized_ Terrain Details to GameObjects (New Method)".
 ![image](https://github.com/eorvedal/Terrain-Interaction-Toolkit/assets/44689074/78c92d47-64a1-460d-81ce-694988a8d2b6)
+
 Under each terrain a child object will appear called "DetailContainer". This will hold all of the spawned GameObjects. The script will now replace the instances of each layer you specified with it's original GameObjects. Save your scene(s). Mission complete!
 
 
