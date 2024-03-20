@@ -6,7 +6,7 @@ First off, what is a terrain detail? It's the grass, bushes, rocks, and any game
 
 Why would you want to do this? Many types of games available today, specifically the survival genre, require you to interact with objects in the player's environment, like chopping down trees, picking up rocks, or harvesting berries from a bush. To do this you may need to turn those details back into GameObjects.
 This code is meant to make changes to your TerrainData. This can break your terrain. It is highly recommended that you know what you're doing.
-Back up your terrains. Use at your own risk.
+Back up your terrains. Use at your own risk. _Do_ _not_ _use_ _this_ _on_ _grass_.
 
 The Toolkit offers two methods making the terrain object interactable:
 Method 1 - GameObject replacement:
@@ -38,12 +38,17 @@ GameObject Replacement Method: First you need to decide which layers you are goi
 Now, make any changes you need to the original prefabs you used to set up your terrain detail layers. If you need to be reminded which prefabs they were exactly you can click on the prototype in the Edit Details like so:
 ![image](https://github.com/eorvedal/Terrain-Interaction-Toolkit/assets/44689074/a7a07fe8-6cbc-4fce-af9c-34fdae0fd4e7)
 
-Once your prefabs are set up with your changes (interactivity scripts, pickup objects scripts, etc.) you are ready to replace the terrain details with these modified prefabs. In the manager's context menu choose "Convert _Customized_ Terrain Details to GameObjects (New Method)".
+Once your prefabs are set up with your changes (interactivity scripts, pickup objects scripts, etc.) you are ready to replace the terrain details with these modified prefabs. In the manager's context menu choose "Convert _Customized_ Terrain Details to GameObjects (New Method)". If you do not choose customized details the options you set in the manager will not be imported to each individual converter, and the process will be run using the options present on each converter, respectively.
 ![image](https://github.com/eorvedal/Terrain-Interaction-Toolkit/assets/44689074/78c92d47-64a1-460d-81ce-694988a8d2b6)
 
 Under each terrain a child object will appear called "DetailContainer". This will hold all of the spawned GameObjects. The script will now replace the instances of each layer you specified with it's original GameObjects. Save your scene(s). Mission complete!
 
+Placeholder Method: (Disclaimer: While this process does work as-is, it is an evolving WIP) Some terrains contain enough details that turning them into GameObjects is impractical and would lead to extremely poor performance with long load times. The answer here is not to replace the details but to let them be rendered by the terrain and load placeholder gameobjects at the same position that act exactly like the detail itself is being interacted with. If you Destroy() the placeholder, the detail is removed from the detail map and disappears along with the placeholder.
+Since these are just placeholders, you can can set it up so that the same placeholder is used for several different layers. For example, if you had 3 different stones you were painting on the terrain, you would still have them interacted with the same way and have the same placeholder represent all three layers, but will still remove the correct detail at runtime. This is accomplished through DetailLayerGroups.
+![image](https://github.com/eorvedal/Terrain-Interaction-Toolkit/assets/44689074/26abce80-550e-4c8c-a534-1cb45eb22e7b)
 
-
+In this example you see that layers 0, 1, and 2 will all be represented by the "BushPlaceholder", and layers 5, 6, and 7 will be represented by "StonePlaceholder". I reccomend leaving the threshold as 1 unless you understand how the layers are painted onto the DetailLayerMap and have a special-use-case. The range represents the size of the Detail Map you will be affecting _when_ _the_ _detail_ _is_ _removed_ _from_ _the_ _Detail_ _Map_. The lowest range we can get down to without affecting only a single pixel is 1 and is affected by the scaling that is done to convert detail map coordinates into terrain space coordinates when the dimensions are not in direct relative scale, and also the resolution per detail patch.
+Once you have your Detail Layer Groups set up properly tick the Runtime Generation checkbox and when you hit play the process will be automatic for any terrain that has a TerrainDetailConverter script on it.
+EXTREMELY IMPORTANT: If you are using runtime generation you must _absolutely_ _back-up_ _your_ _TerrainData_ _files_. The Detail Map is copied at Start(), a fake Detail Map is modified as you play, and then the original Detail Map is restored at OnSceneUnloaded(Scene current), and OnApplicationQuit(). So if your game or editor crashes before either of those CallBacks happen the changes made during the play session will become permanent. You will then need to reload your TerrainData files.
 
 
