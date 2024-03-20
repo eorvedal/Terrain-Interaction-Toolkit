@@ -49,6 +49,7 @@ Since these are just placeholders, you can can set it up so that the same placeh
 
 In this example you see that layers 0, 1, and 2 will all be represented by the "BushPlaceholder", and layers 5, 6, and 7 will be represented by "StonePlaceholder". I reccomend leaving the threshold as 1 unless you understand how the layers are painted onto the DetailLayerMap and have a special-use-case. The range represents the size of the Detail Map you will be affecting _when_ _the_ _detail_ _is_ _removed_ _from_ _the_ _Detail_ _Map_. The lowest range we can get down to without affecting only a single pixel is 1 and is affected by the scaling that is done to convert detail map coordinates into terrain space coordinates when the dimensions are not in direct relative scale, and also the resolution per detail patch.
 Once you have your Detail Layer Groups set up properly tick the Runtime Generation checkbox and when you hit play the process will be automatic for any terrain that has a TerrainDetailConverter script on it.
+
 EXTREMELY IMPORTANT: If you are using runtime generation you must _absolutely_ _back-up_ _your_ _TerrainData_ _files_. The Detail Map is copied at Start(), a fake Detail Map is modified as you play, and then the original Detail Map is restored at OnSceneUnloaded(Scene current), and OnApplicationQuit(). So if your game or editor crashes before either of those CallBacks happen the changes made during the play session will become permanent. You will then need to reload your TerrainData files.
 
 
