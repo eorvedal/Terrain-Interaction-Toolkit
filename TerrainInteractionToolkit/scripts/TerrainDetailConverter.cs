@@ -19,10 +19,13 @@ public class TerrainDetailConverter : MonoBehaviour
     private int[,,] detailBackup;
     private List<int> ReplacedTrees = new List<int>();
 
-    private void Start()
+    private void Awake()
     {
         SceneManager.sceneUnloaded += OnSceneUnloaded;
+
         terrain = GetComponent<Terrain>();
+        terrainData = terrain.terrainData;
+
         if (terrain != null)
         {
             BackupDetailMap();
@@ -31,6 +34,7 @@ public class TerrainDetailConverter : MonoBehaviour
         {
             Debug.LogError("Terrain component not found!");
         }
+
     }
 
     private void BackupDetailMap()
@@ -130,6 +134,17 @@ public class TerrainDetailConverter : MonoBehaviour
             detailContainer.parent = transform;
         }
         ConvertDetailsToPlaceholders(newDetailLayersToReplace, newThreshold, placeHolder, GlobalRange);
+    }
+    public async Task DoThePlaceholderConversion(int[] newDetailLayersToReplace, float newThreshold, GameObject placeHolder, int GlobalRange, List<GameObject> parents)
+    {
+        terrain = GetComponent<Terrain>();
+        terrainData = terrain.terrainData;
+        if (detailContainer == null)
+        {
+            detailContainer = new GameObject("DetailContainer").transform;
+            detailContainer.parent = transform;
+        }
+        ConvertDetailsToPlaceholders(newDetailLayersToReplace, newThreshold, placeHolder, GlobalRange, parents);
     }
 
     public async Task DoTheNewConversion(int[] newDetailLayersToReplace, float newThreshold)
@@ -385,11 +400,74 @@ public class TerrainDetailConverter : MonoBehaviour
                         if (GlobalRange > 0)
                             layerTag.range = GlobalRange;
                         newObject.transform.localScale = scale; // Apply the calculated scale
-                        newObject.transform.parent = detailContainer;
+                        newObject.transform.parent = detailContainer.transform;
                     }
                 }
             }
         }
+    }
+    private void ConvertDetailsToPlaceholders(int[] detailLayersToReplace, float threshold, GameObject DetailPlaceholder, int GlobalRange, List<GameObject> parents)
+    {
+        DetailPrototype[] detailPrototypes = terrainData.detailPrototypes;
+        int detailPatchCount = terrainData.detailPatchCount;
+
+        // Iterate over all patches
+        for (int patchY = 0; patchY < detailPatchCount; patchY++)
+        {
+            for (int patchX = 0; patchX < detailPatchCount; patchX++)
+            {
+                // Create an empty GameObject as the parent
+                GameObject parent = new GameObject("PlaceholderContainer" + terrain.transform.position.x + "." + terrain.transform.position.z + "-" + patchX + "x" + patchY);
+
+                // Calculate center position of the detail patch
+                Vector3 patchCenter = CalculatePatchCenter(terrainData, patchX, patchY);
+
+                parent.transform.position = patchCenter;
+
+                foreach (int layerIndex in detailLayersToReplace)
+                {
+                    // Compute detail instance transforms for the current patch and layer
+                    Bounds bounds;
+                    DetailInstanceTransform[] transforms = terrainData.ComputeDetailInstanceTransforms(patchX, patchY, layerIndex, threshold, out bounds);
+                    // Iterate over computed transforms and instantiate objects
+                    foreach (DetailInstanceTransform transform_ in transforms)
+                    {
+                        Vector3 position = new Vector3(terrain.transform.position.x + transform_.posX, terrain.transform.position.y + transform_.posY, terrain.transform.position.z + transform_.posZ); // Position of the detail object
+                        Quaternion rotation = Quaternion.Euler(0, transform_.rotationY * Mathf.Rad2Deg, 0); // Rotation of the detail object
+                        Vector3 scale = new Vector3(transform_.scaleXZ, transform_.scaleY, transform_.scaleXZ); // Assuming the scale is uniform
+                        GameObject newObject = Instantiate(DetailPlaceholder, position, rotation); // Set the parent of the new object
+                        LayerTag layerTag = newObject.GetComponent<LayerTag>();
+                        if (layerTag == null)
+                            layerTag = newObject.AddComponent<LayerTag>();
+                        layerTag.DetailLayer = layerIndex;
+                        layerTag.DetailTerrain = terrain;
+                        if (GlobalRange > 0)
+                            layerTag.range = GlobalRange;
+                        newObject.transform.localScale = scale; // Apply the calculated scale
+                        newObject.transform.parent = parent.transform;
+                    }
+                }
+                parents.Add(parent); // Add the parent to the list
+            }
+        }
+    }
+
+
+    private Vector3 CalculatePatchCenter(TerrainData terrainData, int patchX, int patchY)
+    {
+        float width = terrainData.size.x;
+        float height = terrainData.size.z;
+        int detailPatchCount = terrainData.detailPatchCount;
+
+        float patchSizeX = width / detailPatchCount;
+        float patchSizeY = height / detailPatchCount;
+
+        // Calculate the center position of the detail patch based on the terrain's position
+        float centerX = terrain.transform.position.x + terrainData.bounds.min.x + (patchX + 0.5f) * patchSizeX;
+        float centerY = terrain.transform.position.y /*+ terrainData.bounds.min.y*/  + terrainData.GetHeight(patchX, patchY);
+        float centerZ = terrain.transform.position.z + terrainData.bounds.min.z + (patchY + 0.5f) * patchSizeY;
+
+        return new Vector3(centerX, centerY, centerZ);
     }
 
     private async Task NewConvertDetailsToGameObjectsBatched()
@@ -473,18 +551,6 @@ public class TerrainDetailConverter : MonoBehaviour
         }
     }
 
-    private Vector3 GetSpawnPosition(int x, int y, int width, int height)
-    {
-        // Calculate the world position based on the terrain dimensions
-        Vector3 position = new Vector3(
-            terrain.transform.position.x + x * (terrainData.size.x / width),
-            terrainData.GetHeight(x, y),
-            terrain.transform.position.z + y * (terrainData.size.z / height)
-        );
-
-        return position;
-    }
-
     async Task NewConvertTreesToGameObjects()
     {
         int width = terrainData.heightmapResolution; // Adjust as needed for tree conversion
@@ -540,51 +606,3 @@ public class TerrainDetailConverter : MonoBehaviour
 }
 
 
-[System.Serializable]
-public class SerializableTerrainData
-{
-    public int detailResolution;
-    public int detailResolutionPerPatch;
-    public int detailWidth;
-    public int detailHeight;
-    public SerializableDetailLayer[] detailLayers;
-
-    public SerializableTerrainData(TerrainData terrainData)
-    {
-        detailResolution = terrainData.detailResolution;
-        detailResolutionPerPatch = terrainData.detailResolutionPerPatch;
-        detailWidth = terrainData.detailWidth;
-        detailHeight = terrainData.detailHeight;
-
-        detailLayers = new SerializableDetailLayer[terrainData.detailPrototypes.Length];
-        for (int i = 0; i < terrainData.detailPrototypes.Length; i++)
-        {
-            detailLayers[i] = new SerializableDetailLayer(terrainData.GetDetailLayer(0, 0, detailWidth, detailHeight, i));
-        }
-    }
-
-    public TerrainData ToTerrainData()
-    {
-        TerrainData terrainData = new TerrainData();
-        terrainData.SetDetailResolution(detailResolution, detailResolutionPerPatch);
-
-        foreach (var detailLayer in detailLayers)
-        {
-            terrainData.SetDetailLayer(0, 0, detailLayer.layer, detailLayer.detailLayer);
-        }
-
-        return terrainData;
-    }
-}
-
-[System.Serializable]
-public class SerializableDetailLayer
-{
-    public int layer;
-    public int[,] detailLayer;
-
-    public SerializableDetailLayer(int[,] detailLayer)
-    {
-        this.detailLayer = detailLayer;
-    }
-}
