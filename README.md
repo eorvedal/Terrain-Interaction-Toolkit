@@ -56,9 +56,14 @@ Once you have your Detail Layer Groups set up properly tick the Runtime Generati
 
 EXTREMELY IMPORTANT: If you are using runtime generation you must _absolutely_ _back-up_ _your_ _TerrainData_ _files_. The Detail Map is copied at Start(), a fake Detail Map is modified as you play, and then the original Detail Map is restored at OnSceneUnloaded(Scene current), and OnApplicationQuit(). So if your game or editor crashes before either of those CallBacks happen the changes made during the play session will become permanent. You will then need to reload your TerrainData files.
 
-Upcoming grid system for loading/unload only placeholders near the player:
+Grid system for fake culling of runtime generated placeholders:
 
 ![image](https://github.com/eorvedal/Terrain-Interaction-Toolkit/assets/44689074/54b161c1-f065-4474-ba61-16efdd9abfb4)
+
+To enable grid based culling, simply tick the checkbox title "Use Grid Based Culling". When this option is enabled the placeholders are grouped together by a grid system and the groups are checked against the "Culling Distance" using the player's position. Culled placeholder grid cells beyond the distance are turned off, and vice versa. The player must be tagged as "Player" for this to work at this time. The "Culling Interval" determines how frequently the distance is checked which determines how often the placeholders are "culled".
+
+![image](https://github.com/eorvedal/Terrain-Interaction-Toolkit/assets/44689074/eeaec841-b44a-42ed-8b9b-e45b7725acbb)
+
 
 
 
