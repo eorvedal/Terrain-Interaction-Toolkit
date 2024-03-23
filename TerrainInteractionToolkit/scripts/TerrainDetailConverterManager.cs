@@ -1,6 +1,8 @@
 using UnityEngine;
 using UnityEditor;
 using System.Collections.Generic;
+using System.Collections;
+
 [System.Serializable]
 public class DetailLayerGroup
 {
@@ -15,6 +17,11 @@ public class TerrainDetailConverterManager : MonoBehaviour
     [Header("Runtime Generation - uses prefab placeholders")]
     public bool RuntimeGeneration = false;
     public DetailLayerGroup[] layerGroups;
+    public bool UseGridBasedCulling = false;
+    public float cullingDistance = 50.0f; // Set loadUnloadDistance to 1 for a 3x3 grid
+    public float cullingInterval = 3.0f;
+    private List<GameObject> PlaceholderGroups = new List<GameObject>();
+    //public float loadUnloadDistance = 10f; // Adjust as needed
     [SpaceArea]
     [Header("In-Editor Methods - uses TerrainData prototypes")]
     public int[] newDetailLayersToReplace;
@@ -23,11 +30,20 @@ public class TerrainDetailConverterManager : MonoBehaviour
     public List<int> texturesToExclude = new List<int>(); // Public list to hold texture indices to be excluded
     public GameObject placeholder;
     public int GlobalRange = 1;
+    private Transform playerTransform;
+    private Coroutine cullingCoroutine;
 
     private void Start()
     {
         if (RuntimeGeneration)
+        {
             SetupPlaceholdersNoProgress();
+            if (UseGridBasedCulling)
+            {
+                playerTransform = GameObject.FindGameObjectWithTag("Player").transform;
+                cullingCoroutine = StartCoroutine(CullPlaceholdersPeriodically());
+            }
+        }
     }
     [ContextMenu("Objects/Convert Terrain Details to GameObjects (New Method)")]
     public async void NewConvertTerrainDetails()
@@ -86,7 +102,7 @@ public class TerrainDetailConverterManager : MonoBehaviour
         {
             foreach (DetailLayerGroup dlg in layerGroups)
             {
-                await converter.DoThePlaceholderConversion(dlg.DetailGroupLayers, dlg.GroupThreshold, dlg.GroupPlaceholder, (int)dlg.GroupThreshold);
+                await converter.DoThePlaceholderConversion(dlg.DetailGroupLayers, dlg.GroupThreshold, dlg.GroupPlaceholder, (int)dlg.GroupThreshold, PlaceholderGroups);
             }
             //await converter.DoThePlaceholderConversion(newDetailLayersToReplace, newThreshold, placeholder, GlobalRange);
         }
@@ -229,4 +245,35 @@ public class TerrainDetailConverterManager : MonoBehaviour
     }
 
 
+    private IEnumerator CullPlaceholdersPeriodically()
+    {
+        if (RuntimeGeneration && UseGridBasedCulling)
+        {
+            while (true)
+            {
+                yield return new WaitForSeconds(cullingInterval);
+
+                // Perform culling logic
+                CullPlaceholders();
+            }
+        }
+    }
+    private void CullPlaceholders()
+    {
+        foreach (GameObject parent in PlaceholderGroups)
+        {
+            float distanceToPlayer = Vector3.Distance(parent.transform.position, playerTransform.transform.position);
+
+            if (distanceToPlayer > cullingDistance)
+            {
+                // Deactivate all placeholders in this cell
+                parent.SetActive(false);
+            }
+            else
+            {
+                // Activate all placeholders in this cell
+                parent.SetActive(true);
+            }
+        }
+    }
 }
